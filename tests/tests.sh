@@ -11,12 +11,56 @@ function error() {
     NC='\033[0m'
     echo -e "${RED}$*${NC}" >&2
 }
+function info() {
+    GRN='\033[0;32m'
+    NC='\033[0m'
+    echo -e "${GRN}$*${NC}" >&2
+}
 
 function check() {
-    if [[ "$1" != "$2" ]]; then
-        error "Failed check in ${FUNCNAME[1]}; have '$1', want '$2'"
+    rc=0
+    if ! have="$(run "$1")"; then
+        error "Failed check in ${FUNCNAME[1]}; k_params '$1' exited with status $?"
+        FAILURES+=("${FUNCNAME[1]}")
+        rc=1
     fi
-    FAILURES+=("${FUNCNAME[1]}")
+
+    if [[ "$have" != "$2" ]]; then
+        error "Failed check in ${FUNCNAME[1]}; k_params '$1' = '$have', want '$2'"
+        FAILURES+=("${FUNCNAME[1]}")
+        rc=1
+    else
+        info "${FUNCNAME[1]}; check k_params '$1' ✓"
+    fi
+    return "$rc"
+}
+
+function check_with_default() {
+    rc=0
+    if ! have="$(run "$1" "$2")"; then
+        error "Failed check_with_default in ${FUNCNAME[1]}; k_params '$1' '$2' exited with status $?"
+        FAILURES+=("${FUNCNAME[1]}")
+        rc=1
+    fi
+
+    if [[ "$have" != "$3" ]]; then
+        error "Failed check_with_default in ${FUNCNAME[1]}; k_params '$1' '$2' = '$have', want '$3'"
+        FAILURES+=("${FUNCNAME[1]}")
+        rc=1
+    else
+        info "${FUNCNAME[1]}; check_with_default k_params '$1' '$2' ✓"
+    fi
+    return "$rc"
+}
+
+function wantfail() {
+    if ! have="$(run "$1" "$2")"; then
+        error "Failed wantfail in ${FUNCNAME[1]}; '$*' = '$have'"
+        FAILURES+=("${FUNCNAME[1]}")
+    else
+        info "${FUNCNAME[1]}; wantfail '$*' ✓"
+    fi
+
 }
 
 FAILURES=()
@@ -24,18 +68,51 @@ FAILURES=()
 function test_unquoted() {
     export TESTONLY_ALTERNATIVE_CMDLINE="$HERE/flatcar_cmdline.txt"
 
-    check "$(run rootflags)" "ro"
+    check rootflags "rw"
+    check mount.usrflags "ro"
 }
 
 function test_quoted() {
     export TESTONLY_ALTERNATIVE_CMDLINE="$HERE/flatcar_cmdline.txt"
 
-    check "$(run sshkey)" "ssh-rsa blahblah"
-    check "$(run hostname)" "node0"
+    check sshkey "ssh-rsa blahblah"
+    check hostname "node0"
+    check singlequotes "abc"
 }
 
+function test_defaults() {
+    export TESTONLY_ALTERNATIVE_CMDLINE="$HERE/flatcar_cmdline.txt"
 
-CASES=(test_unquoted test_quoted)
+    wantfail doesnotexist ""
+    check_with_default doesnotexist "lmao" "lmao"
+}
+
+function test_usage() {
+    export TESTONLY_ALTERNATIVE_CMDLINE="$HERE/flatcar_cmdline.txt"
+
+    if have="$(run 2>&1)"; then
+        error "Failed in ${FUNCNAME[0]}; k_params exited with status $?"
+        FAILURES+=("${FUNCNAME[0]}")
+    fi
+    if ! grep -q "Usage:" <<< "$have"; then
+        error "Failed in ${FUNCNAME[0]}; k_params lacks 'Usage:'; have '$have'"
+        FAILURES+=("${FUNCNAME[0]}")
+    fi
+}
+
+function test_nodollarsigns() {
+    export TESTONLY_ALTERNATIVE_CMDLINE="$HERE/dolladolla.txt"
+    if have="$(run dolla 2>&1)"; then
+        error "Failed in ${FUNCNAME[0]}; k_params exited with status $?"
+        FAILURES+=("${FUNCNAME[0]}")
+    fi
+    if ! grep -q "refusing to expand" <<< "$have"; then
+        error "Failed in ${FUNCNAME[0]}; k_params lacks 'refusing to expand'; have '$have'"
+        FAILURES+=("${FUNCNAME[0]}")
+    fi
+}
+
+CASES=(test_unquoted test_quoted test_defaults test_usage test_nodollarsigns)
 for c in "${CASES[@]}"; do "$c"; done
 
 if [[ "${#FAILURES[@]}" > 0 ]]; then

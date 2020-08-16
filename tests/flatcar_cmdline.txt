@@ -1,1 +1,1 @@
-rootflags=rw mount.usrflags=ro initrd=flatcar_production_pxe_image.cpio.gz flatcar.first_boot=1 sshkey="ssh-rsa blahblah" hostname="node0" ignition.config.url=https://raw.githubusercontent.com/mcsaucy/ephemeros/master/ignition.ign
+rootflags=rw mount.usrflags=ro initrd=flatcar_production_pxe_image.cpio.gz flatcar.first_boot=1 sshkey="ssh-rsa blahblah" hostname="node0" ignition.config.url=https://raw.githubusercontent.com/mcsaucy/ephemeros/master/ignition.ign singlequotes='abc'
