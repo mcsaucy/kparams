@@ -26,9 +26,7 @@ fi
 declare -a _allparams
 declare -A _parammap
 
-eval "_allparams=( $(cat "$__CMDLINE") )"
-
-eval "_allparams=( $(cat "$__CMDLINE") )"
+eval "_allparams=( $(<"$__CMDLINE") )"
 for p in "${_allparams[@]}"; do
     k="${p%%=*}"
     v="${p#*=}"
