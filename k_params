@@ -1,0 +1,17 @@
+#!/bin/bash
+
+
+function usage_and_die() {
+    {
+        echo "Extracts kernel parameters from /proc/cmdline."
+        echo "If parameter is absent, return DEFAULT_VALUE (if set) or exit with status 1."
+        echo "Usage: $0 PARAMETER [DEFAULT_VALUE]"
+    } >&2
+    exit 2
+}
+
+if [[ "$#" < 1 || "$#" > 2 ]]; then
+    usage_and_die
+fi
+
+CMDLINE="${TESTONLY_ALTERNATIVE_CMDLINE:-/proc/cmdline}"
