@@ -6,11 +6,14 @@ Extracts values from /proc/cmdline. Handles bare and quoted parameters.
 
 `$ k_params PARAM_NAME [DEFAULT_VALUE]`
 
+
 ## Requirements
 
 * `bash` 4+ (we use associative arrays, but I could reconsider if someone cares)
 
 ## Caveats
 
-The current implemtation `eval`s /proc/cmdline, so we refuse to process that if
-there's a `$` in there to prevent corruption and env leakage.
+We're presently unable to handle certain escapes within parameters. For example:
+`foo="bar: \"baz\""` will look like `\"baz\"` when queried, rather than `"baz"`.
+It'll take another parsing pass to make that work, which will get fixed if I
+care enough.
