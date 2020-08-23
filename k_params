@@ -12,35 +12,138 @@ function usage_and_die() {
     exit 1
 }
 
+function slice() {
+    to_slice="$1"
+    shift
+    # Also add an ending boundary.
+    boundaries=("$@" "$(("${#to_slice}" + 1))")
+    lead=0
+
+    for end in "${boundaries[@]}"; do
+        ((len = end - lead))
+        printf '%s\0' "${to_slice:$lead:$len}"
+        ((lead = end + 1)) # +1 = skip the separator
+    done
+}
+
+# TODO(mcsaucy): make this more advanced so we can do "/"" -> ".
+function unquote() {
+    to_strip="$1"
+    ((last = "${#to_strip}" - 1))
+    if [[ "${to_strip:0:1}" != "${to_strip:$last:1}" ]]; then
+        # If they don't start with the same thing, then they aren't wrapped
+        # in matching quotes and we can bail now.
+        echo "$to_strip"
+        return
+    fi
+
+    case "${to_strip:0:1}" in
+        "'" | '"')
+            echo "${to_strip:1:$((last - 1))}"
+            return
+            ;;
+        *)
+            echo "$to_strip"
+            return
+            ;;
+    esac
+}
+
+
+
+function parse() {
+    local to_parse="$1"
+    local callback="$2" # Calls this with all found params as arguments.
+
+    local in_sq_context=false
+    local in_dq_context=false
+    local esc=false
+    local boundaries=()
+
+    for ((i=0; i < "${#to_parse}"; i++)); do
+        char="${to_parse:$i:1}"
+
+        if [[ "$esc" == "true" ]]; then # char is escaped, skipping.
+            esc=false
+            continue
+        fi
+
+        case "$char" in
+            " "|"	"|"\n")
+                if [[ "$in_sq_context" == "false" \
+                    && "$in_dq_context" == "false" ]]; then
+                    # This is bare whitespace. Cut here.
+                    boundaries+=("$i")
+                fi
+                ;;
+            "'")
+                if [[ "$in_dq_context" == "true" ]]; then
+                    # This is a ' within doublequotes. Don't parse it.
+                    continue
+                elif [[ "$in_sq_context" == "true" ]]; then
+                    # This is a closing quote.
+                    in_sq_context=false
+                else
+                    # This is an opening quote.
+                    in_sq_context=true
+                fi
+                ;;
+            '"')
+                if [[ "$in_sq_context" == "true" ]]; then
+                    # This is a " within singlequotes. Don't parse it.
+                    continue
+                elif [[ "$in_dq_context" == "true" ]]; then
+                    # This is a closing quote.
+                    in_dq_context=false
+                else
+                    # This is an opening quote.
+                    in_dq_context=true
+                fi
+                ;;
+        esac
+    done
+
+    mapfile -d '' kparams < <(slice "$to_parse" "${boundaries[@]}")
+    local filtered=()
+    for kp in "${kparams[@]}"; do
+        if [[ "$kp" != "" ]]; then
+            filtered+=("$kp")
+        fi
+    done
+
+    "$callback" "${filtered[@]}"
+}
+
+function lookup() {
+    declare -A _parammap
+    
+    for p in "$@"; do
+        k="${p%%=*}"
+        v="${p#*=}"
+        _parammap["$k"]="$v"
+    done
+
+    # If not present, then figure out if we should use a default or fail.
+    if [[ "${_parammap["$WANT"]+present}" != "present" ]]; then
+        if [[ "${DEFAULT+present}" == "present" ]]; then
+            echo "$DEFAULT"
+            exit 0
+        else
+            exit 1
+        fi
+    fi
+
+    unquote "${_parammap[$WANT]}"
+}
+
 if [[ "$#" < 1 || "$#" > 2 ]]; then
     usage_and_die
 fi
+WANT="$1"
+if [[ "$#" == 2 ]]; then
+    DEFAULT="$2"
+fi
 
 __CMDLINE="${TESTONLY_ALTERNATIVE_CMDLINE:-/proc/cmdline}"
-
-if grep -q '\$' "$__CMDLINE"; then
-    echo "$__CMDLINE has a \$; refusing to expand to prevent env leakage." >&2
-    exit 2
-fi
-
-declare -a _allparams
-declare -A _parammap
-
-eval "_allparams=( $(<"$__CMDLINE") )"
-for p in "${_allparams[@]}"; do
-    k="${p%%=*}"
-    v="${p#*=}"
-    _parammap["$k"]="$v"
-done
-
-# If not present, then figure out if we should use a default or fail.
-if [[ ${_parammap[$1]+present} != "present" ]]; then
-    if [[ "$#" == 2 ]]; then
-        echo "$2"
-        exit 0
-    else
-        exit 1
-    fi
-fi
-
-echo "${_parammap[$1]}"
+TO_PARSE="$(<"$__CMDLINE")"
+parse "$TO_PARSE" lookup

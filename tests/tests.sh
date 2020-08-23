@@ -54,13 +54,12 @@ function check_with_default() {
 }
 
 function wantfail() {
-    if ! have="$(run "$1" "$2")"; then
+    if have="$(run "$1")"; then
         error "Failed wantfail in ${FUNCNAME[1]}; '$*' = '$have'"
         FAILURES+=("${FUNCNAME[1]}")
     else
         info "${FUNCNAME[1]}; wantfail '$*' ✓"
     fi
-
 }
 
 FAILURES=()
@@ -83,7 +82,7 @@ function test_quoted() {
 function test_defaults() {
     export TESTONLY_ALTERNATIVE_CMDLINE="$HERE/flatcar_cmdline.txt"
 
-    wantfail doesnotexist ""
+    wantfail doesnotexist
     check_with_default doesnotexist "lmao" "lmao"
 }
 
@@ -100,19 +99,15 @@ function test_usage() {
     fi
 }
 
-function test_nodollarsigns() {
-    export TESTONLY_ALTERNATIVE_CMDLINE="$HERE/dolladolla.txt"
-    if have="$(run dolla 2>&1)"; then
-        error "Failed in ${FUNCNAME[0]}; k_params exited with status $?"
-        FAILURES+=("${FUNCNAME[0]}")
-    fi
-    if ! grep -q "refusing to expand" <<< "$have"; then
-        error "Failed in ${FUNCNAME[0]}; k_params lacks 'refusing to expand'; have '$have'"
-        FAILURES+=("${FUNCNAME[0]}")
-    fi
+function test_danger() {
+    export TESTONLY_ALTERNATIVE_CMDLINE="$HERE/danger.txt"
+
+    check foo "*"
+    check bar '`echo evalling this is a bad vuln`'
+    check dolla '$PATH'
 }
 
-CASES=(test_unquoted test_quoted test_defaults test_usage test_nodollarsigns)
+CASES=(test_unquoted test_quoted test_defaults test_usage test_danger)
 for c in "${CASES[@]}"; do "$c"; done
 
 if [[ "${#FAILURES[@]}" > 0 ]]; then
