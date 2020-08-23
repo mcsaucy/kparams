@@ -1,6 +1,6 @@
 # k_params
 
-Extracts values from /proc/cmdline.
+Extracts values from /proc/cmdline. Handles bare and quoted parameters.
 
 ## Usage
 
