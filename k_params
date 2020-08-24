@@ -26,31 +26,6 @@ function slice() {
     done
 }
 
-# TODO(mcsaucy): make this more advanced so we can do "/"" -> ".
-function unquote() {
-    to_strip="$1"
-    ((last = "${#to_strip}" - 1))
-    if [[ "${to_strip:0:1}" != "${to_strip:$last:1}" ]]; then
-        # If they don't start with the same thing, then they aren't wrapped
-        # in matching quotes and we can bail now.
-        echo "$to_strip"
-        return
-    fi
-
-    case "${to_strip:0:1}" in
-        "'" | '"')
-            echo "${to_strip:1:$((last - 1))}"
-            return
-            ;;
-        *)
-            echo "$to_strip"
-            return
-            ;;
-    esac
-}
-
-
-
 function parse() {
     local to_parse="$1"
     local callback="$2" # Calls this with all found params as arguments.
@@ -68,6 +43,8 @@ function parse() {
             continue
         fi
 
+        zap_char=
+
         case "$char" in
             " "|"	"|"\n")
                 if [[ "$in_sq_context" == "false" \
@@ -83,9 +60,11 @@ function parse() {
                 elif [[ "$in_sq_context" == "true" ]]; then
                     # This is a closing quote.
                     in_sq_context=false
+                    zap_char=y
                 else
                     # This is an opening quote.
                     in_sq_context=true
+                    zap_char=y
                 fi
                 ;;
             '"')
@@ -95,12 +74,22 @@ function parse() {
                 elif [[ "$in_dq_context" == "true" ]]; then
                     # This is a closing quote.
                     in_dq_context=false
+                    zap_char=y
                 else
                     # This is an opening quote.
                     in_dq_context=true
+                    zap_char=y
                 fi
                 ;;
+            '\')
+                esc=true
+                zap_char=y
+                ;;
         esac
+        if [[ -n "$zap_char" ]]; then
+            to_parse="${to_parse:0:$i}${to_parse:$((i+1)):${#to_parse}}"
+            ((i--))
+        fi
     done
 
     mapfile -d '' kparams < <(slice "$to_parse" "${boundaries[@]}")
@@ -133,7 +122,7 @@ function lookup() {
         fi
     fi
 
-    unquote "${_parammap[$WANT]}"
+    echo "${_parammap[$WANT]}"
 }
 
 if [[ "$#" < 1 || "$#" > 2 ]]; then

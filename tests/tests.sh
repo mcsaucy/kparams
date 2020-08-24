@@ -107,7 +107,15 @@ function test_danger() {
     check dolla '$PATH'
 }
 
-CASES=(test_unquoted test_quoted test_defaults test_usage test_danger)
+function test_escaping() {
+    export TESTONLY_ALTERNATIVE_CMDLINE="$HERE/the_great_escape.txt"
+
+    check a '"'
+    check b "'"
+    check c '\'
+}
+
+CASES=(test_unquoted test_quoted test_defaults test_usage test_danger test_escaping)
 for c in "${CASES[@]}"; do "$c"; done
 
 if [[ "${#FAILURES[@]}" > 0 ]]; then
