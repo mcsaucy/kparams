@@ -12,31 +12,17 @@ function usage_and_die() {
     exit 1
 }
 
-function slice() {
-    to_slice="$1"
-    shift
-    # Also add an ending boundary.
-    boundaries=("$@" "$(("${#to_slice}" + 1))")
-    lead=0
-
-    for end in "${boundaries[@]}"; do
-        ((len = end - lead))
-        printf '%s\0' "${to_slice:$lead:$len}"
-        ((lead = end + 1)) # +1 = skip the separator
-    done
-}
-
+# Emits a series of \0-delimited param=value entries to stdout.
 function parse() {
     local to_parse="$1"
-    local callback="$2" # Calls this with all found params as arguments.
 
     local in_sq_context=false
     local in_dq_context=false
     local esc=false
-    local boundaries=()
+    local tail=0
 
-    for ((i=0; i < "${#to_parse}"; i++)); do
-        char="${to_parse:$i:1}"
+    for ((head=0; head < "${#to_parse}"; head++)); do
+        char="${to_parse:$head:1}"
 
         if [[ "$esc" == "true" ]]; then # char is escaped, skipping.
             esc=false
@@ -50,7 +36,8 @@ function parse() {
                 if [[ "$in_sq_context" == "false" \
                     && "$in_dq_context" == "false" ]]; then
                     # This is bare whitespace. Cut here.
-                    boundaries+=("$i")
+                    printf '%s\0' "${to_parse:$tail:$((head-tail))}"
+                    ((tail=head+1))
                 fi
                 ;;
             "'")
@@ -87,52 +74,42 @@ function parse() {
                 ;;
         esac
         if [[ -n "$zap_char" ]]; then
-            to_parse="${to_parse:0:$i}${to_parse:$((i+1)):${#to_parse}}"
-            ((i--))
+            to_parse="${to_parse:0:$head}${to_parse:$((head+1))}"
+            ((head--))
         fi
     done
 
-    mapfile -d '' kparams < <(slice "$to_parse" "${boundaries[@]}")
-    local filtered=()
-    for kp in "${kparams[@]}"; do
-        if [[ "$kp" != "" ]]; then
-            filtered+=("$kp")
-        fi
-    done
-
-    "$callback" "${filtered[@]}"
+    printf '%s\0' "${to_parse:$tail}"
 }
 
 function lookup() {
     declare -A _parammap
-    
-    for p in "$@"; do
+
+    mapfile -d '' kparams
+    for p in "${kparams[@]}"; do
         k="${p%%=*}"
         v="${p#*=}"
-        _parammap["$k"]="$v"
+        [[ -z "$k" ]] && continue # empty entry; skip it
+        _parammap[$k]="$v"
     done
 
     # If not present, then figure out if we should use a default or fail.
-    if [[ "${_parammap["$WANT"]+present}" != "present" ]]; then
-        if [[ "${DEFAULT+present}" == "present" ]]; then
-            echo "$DEFAULT"
+    if [[ ! -v "_parammap[$1]" ]]; then
+        if [[ "$#" == 2 ]]; then
+            echo "$2"
             exit 0
         else
             exit 1
         fi
     fi
 
-    echo "${_parammap[$WANT]}"
+    echo "${_parammap[$1]}"
 }
 
 if [[ "$#" < 1 || "$#" > 2 ]]; then
     usage_and_die
 fi
-WANT="$1"
-if [[ "$#" == 2 ]]; then
-    DEFAULT="$2"
-fi
 
 __CMDLINE="${TESTONLY_ALTERNATIVE_CMDLINE:-/proc/cmdline}"
 TO_PARSE="$(<"$__CMDLINE")"
-parse "$TO_PARSE" lookup
+parse "$TO_PARSE" | lookup "$@"

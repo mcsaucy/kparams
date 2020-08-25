@@ -113,6 +113,7 @@ function test_escaping() {
     check a '"'
     check b "'"
     check c '\'
+    check d 'a\b'
 }
 
 CASES=(test_unquoted test_quoted test_defaults test_usage test_danger test_escaping)
