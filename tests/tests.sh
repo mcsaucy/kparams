@@ -133,7 +133,7 @@ function runtests() {
     fi
 
     shift
-    if [[ "$#" > 0 ]]; then
+    if [[ "$#" -gt 0 ]]; then
         info "Running just the following tests: $*"
         CASES=("$@")
     else
@@ -142,14 +142,14 @@ function runtests() {
 
     for c in "${CASES[@]}"; do "$c"; done
 
-    if [[ "${#FAILURES[@]}" > 0 ]]; then
+    if [[ "${#FAILURES[@]}" -gt 0 ]]; then
         f="$(printf "%s\n" "${FAILURES[@]}" | sort -u | xargs printf "    - %s\n")"
         error "\nEncountered failures on the following:\n$f"
         UNHEALTHY=yes
     fi
 }
 
-for shell in bash dash ash posh ksh; do runtests "$shell" "$@"; done
+for shell in bash dash ash posh ksh zsh; do runtests "$shell" "$@"; done
 if [[ -n "$UNHEALTHY" ]]; then
     exit 1
 fi
