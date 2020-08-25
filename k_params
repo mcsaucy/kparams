@@ -36,13 +36,13 @@ substr() {
 
 # Emits a series of \0-delimited param=value entries to stdout.
 parse() {
-    local to_parse="$1"
+    to_parse="$1"
 
-    local in_sq_context=false
-    local in_dq_context=false
-    local esc=false
-    local tail=0
-    local head=0
+    in_sq_context=false
+    in_dq_context=false
+    esc=false
+    tail=0
+    head=0
 
     while [ "$head" -lt "${#to_parse}" ]; do
         char="$(substr "$to_parse" "$head" 1)"

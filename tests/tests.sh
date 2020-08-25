@@ -149,7 +149,7 @@ function runtests() {
     fi
 }
 
-for shell in bash dash ash posh; do runtests "$shell" "$@"; done
+for shell in bash dash ash posh ksh; do runtests "$shell" "$@"; done
 if [[ -n "$UNHEALTHY" ]]; then
     exit 1
 fi
