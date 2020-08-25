@@ -10,4 +10,4 @@ Check out `tests/*.txt` to see examples of what we can extract.
 
 ## Requirements
 
-* `bash`
+* A POSIX-compliant shell (sorry, ZSH users)

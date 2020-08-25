@@ -3,18 +3,23 @@
 HERE="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 function run() {
-    bash "$HERE/../k_params" "$@"
+    "$TESTSHELL" "$HERE/../k_params" "$@"
 }
 
 function error() {
     RED='\033[0;31m'
     NC='\033[0m'
-    echo -e "${RED}$*${NC}" >&2
+    echo -e "${RED}[$TESTSHELL] $*${NC}" >&2
 }
 function info() {
     GRN='\033[0;32m'
     NC='\033[0m'
-    echo -e "${GRN}$*${NC}" >&2
+    echo -e "${GRN}[$TESTSHELL] $*${NC}" >&2
+}
+function warn() {
+    YLW='\033[0;33m'
+    NC='\033[0m'
+    echo -e "${YLW}[$TESTSHELL] $*${NC}" >&2
 }
 
 function check() {
@@ -116,11 +121,35 @@ function test_escaping() {
     check d 'a\b'
 }
 
-CASES=(test_unquoted test_quoted test_defaults test_usage test_danger test_escaping)
-for c in "${CASES[@]}"; do "$c"; done
 
-if [[ "${#FAILURES[@]}" > 0 ]]; then
-    f="$(printf "%s\n" "${FAILURES[@]}" | sort -u | xargs printf "    - %s\n")"
-    error "\nEncountered failures on the following:\n$f"
+UNHEALTHY=
+
+function runtests() {
+    TESTSHELL="$1"
+
+    if ! which "$TESTSHELL" >/dev/null 2>/dev/null; then
+        warn "skipping tests for this shell since we can't find it in PATH"
+        return
+    fi
+
+    shift
+    if [[ "$#" > 0 ]]; then
+        info "Running just the following tests: $*"
+        CASES=("$@")
+    else
+        CASES=(test_unquoted test_quoted test_defaults test_usage test_danger test_escaping)
+    fi
+
+    for c in "${CASES[@]}"; do "$c"; done
+
+    if [[ "${#FAILURES[@]}" > 0 ]]; then
+        f="$(printf "%s\n" "${FAILURES[@]}" | sort -u | xargs printf "    - %s\n")"
+        error "\nEncountered failures on the following:\n$f"
+        UNHEALTHY=yes
+    fi
+}
+
+for shell in bash dash ash posh; do runtests "$shell" "$@"; done
+if [[ -n "$UNHEALTHY" ]]; then
     exit 1
 fi

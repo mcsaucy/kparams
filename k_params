@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-function usage_and_die() {
+usage_and_die() {
     {
         echo 'Extracts kernel parameters from /proc/cmdline. Only run this on trusted files!'
         echo 'To prevent erroneous expansion, this will fail if /proc/cmdline has a $ in it.'
@@ -12,34 +12,45 @@ function usage_and_die() {
     exit 1
 }
 
-function try() {
+try() {
     # This is bare whitespace. Cut here.
     to_try="$1"
     want="$2"
     name="${to_try%%=*}"
     value="${to_try#*=}"
-    if [[ "$name" == "$want" ]]; then
-        echo "$value"
+    if [ "$name" = "$want" ]; then
+        printf "%s\n" "$value"
         exit 0
     fi
     return 1
 }
 
+substr() {
+    str="$1"
+    start="$2"
+    len="${3:-${#str}}"
+
+    # expr substr 1-indexes because we're in a hell world.
+    expr substr "$str" "$((start+1))" "$len"
+}
 
 # Emits a series of \0-delimited param=value entries to stdout.
-function parse() {
+parse() {
     local to_parse="$1"
 
     local in_sq_context=false
     local in_dq_context=false
     local esc=false
     local tail=0
+    local head=0
 
-    for ((head=0; head < "${#to_parse}"; head++)); do
-        char="${to_parse:$head:1}"
+    while [ "$head" -lt "${#to_parse}" ]; do
+        char="$(substr "$to_parse" "$head" 1)"
+        next="$(substr "$to_parse" "$((head+1))" 1)"
 
-        if [[ "$esc" == "true" ]]; then # char is escaped, skipping.
+        if [ "$esc" = "true" ]; then # char is escaped, skipping.
             esc=false
+            head="$((head+1))"
             continue
         fi
 
@@ -47,25 +58,21 @@ function parse() {
 
         case "$char" in
             " "|"	"|"\n")
-                if [[ "$in_sq_context" == "false" \
-                    && "$in_dq_context" == "false" ]]; then
+                if [ "$in_sq_context" = "false" ] && [ "$in_dq_context" = "false" ]; then
                     # This is bare whitespace. Cut here.
-                    try "${to_parse:$tail:$((head-tail))}" "$2"
-                    name="${whole%%=*}"
-                    value="${whole#*=}"
-                    if [[ "$whole" == "$2" ]]; then
-                        echo "$value"
-                        exit 0
-                    fi
+
+                    to_try="$(substr "$to_parse" "$tail" "$((head-tail))")"
+                    try "$to_try" "$2"
                     # Haven't found it yet; mark our tail here and keep going.
-                    ((tail=head+1))
+                    tail="$((head+1))"
                 fi
                 ;;
             "'")
-                if [[ "$in_dq_context" == "true" ]]; then
+                if [ "$in_dq_context" = "true" ]; then
                     # This is a ' within doublequotes. Don't parse it.
+                    head="$((head+1))"
                     continue
-                elif [[ "$in_sq_context" == "true" ]]; then
+                elif [ "$in_sq_context" = "true" ]; then
                     # This is a closing quote.
                     in_sq_context=false
                     zap_char=y
@@ -76,10 +83,11 @@ function parse() {
                 fi
                 ;;
             '"')
-                if [[ "$in_sq_context" == "true" ]]; then
+                if [ "$in_sq_context" = "true" ]; then
                     # This is a " within singlequotes. Don't parse it.
+                    head="$((head+1))"
                     continue
-                elif [[ "$in_dq_context" == "true" ]]; then
+                elif [ "$in_dq_context" = "true" ]; then
                     # This is a closing quote.
                     in_dq_context=false
                     zap_char=y
@@ -91,28 +99,36 @@ function parse() {
                 ;;
             '\')
                 esc=true
-                zap_char=y
+                case "$next" in
+                    "'" | '"' | '\')
+                        zap_char=y
+                        ;;
+                esac
                 ;;
         esac
-        if [[ -n "$zap_char" ]]; then
-            to_parse="${to_parse:0:$head}${to_parse:$((head+1))}"
-            ((head--))
+        if [ "$zap_char" != "" ]; then
+            pref="$(substr "$to_parse" 0 "$head")"
+            suff="$(substr "$to_parse" "$((head + 1))")"
+            to_parse="$pref$suff"
+        else
+            head="$((head+1))"
         fi
     done
 
     # Let's try whatever we've got left.
-    if ! try "${to_parse:$tail}" "$2" && [[ "$#" == 3 ]]; then
-        echo "$3"
+    to_try="$(substr "$to_parse" "$tail")"
+    if ! try "$to_try" "$2" && [ "$#" -eq 3 ]; then
+        printf "%s\n" "$3"
         exit 0
     else
         exit 1
     fi
 }
 
-if [[ "$#" < 1 || "$#" > 2 ]]; then
+if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
     usage_and_die
 fi
 
 __CMDLINE="${TESTONLY_ALTERNATIVE_CMDLINE:-/proc/cmdline}"
-TO_PARSE="$(<"$__CMDLINE")"
+TO_PARSE="$(cat "$__CMDLINE")"
 parse "$TO_PARSE" "$@"
