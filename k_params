@@ -34,8 +34,8 @@ substr() {
     expr substr "$str" "$((start+1))" "$len"
 }
 
-# Emits a series of \0-delimited param=value entries to stdout.
-parse() {
+# Finds the $2 kernel param value in $1, emitting if absent and $3 is provided. 
+lookup() {
     to_parse="$1"
 
     in_sq_context=false
@@ -131,4 +131,4 @@ fi
 
 __CMDLINE="${TESTONLY_ALTERNATIVE_CMDLINE:-/proc/cmdline}"
 TO_PARSE="$(cat "$__CMDLINE")"
-parse "$TO_PARSE" "$@"
+lookup "$TO_PARSE" "$@"
