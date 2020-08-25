@@ -10,4 +10,4 @@ Check out `tests/*.txt` to see examples of what we can extract.
 
 ## Requirements
 
-* `bash` 4+ (we use associative arrays, but I could reconsider if someone cares)
+* `bash`

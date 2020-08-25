@@ -12,6 +12,20 @@ function usage_and_die() {
     exit 1
 }
 
+function try() {
+    # This is bare whitespace. Cut here.
+    to_try="$1"
+    want="$2"
+    name="${to_try%%=*}"
+    value="${to_try#*=}"
+    if [[ "$name" == "$want" ]]; then
+        echo "$value"
+        exit 0
+    fi
+    return 1
+}
+
+
 # Emits a series of \0-delimited param=value entries to stdout.
 function parse() {
     local to_parse="$1"
@@ -36,7 +50,14 @@ function parse() {
                 if [[ "$in_sq_context" == "false" \
                     && "$in_dq_context" == "false" ]]; then
                     # This is bare whitespace. Cut here.
-                    printf '%s\0' "${to_parse:$tail:$((head-tail))}"
+                    try "${to_parse:$tail:$((head-tail))}" "$2"
+                    name="${whole%%=*}"
+                    value="${whole#*=}"
+                    if [[ "$whole" == "$2" ]]; then
+                        echo "$value"
+                        exit 0
+                    fi
+                    # Haven't found it yet; mark our tail here and keep going.
                     ((tail=head+1))
                 fi
                 ;;
@@ -79,31 +100,13 @@ function parse() {
         fi
     done
 
-    printf '%s\0' "${to_parse:$tail}"
-}
-
-function lookup() {
-    declare -A _parammap
-
-    mapfile -d '' kparams
-    for p in "${kparams[@]}"; do
-        k="${p%%=*}"
-        v="${p#*=}"
-        [[ -z "$k" ]] && continue # empty entry; skip it
-        _parammap[$k]="$v"
-    done
-
-    # If not present, then figure out if we should use a default or fail.
-    if [[ ! -v "_parammap[$1]" ]]; then
-        if [[ "$#" == 2 ]]; then
-            echo "$2"
-            exit 0
-        else
-            exit 1
-        fi
+    # Let's try whatever we've got left.
+    if ! try "${to_parse:$tail}" "$2" && [[ "$#" == 3 ]]; then
+        echo "$3"
+        exit 0
+    else
+        exit 1
     fi
-
-    echo "${_parammap[$1]}"
 }
 
 if [[ "$#" < 1 || "$#" > 2 ]]; then
@@ -112,4 +115,4 @@ fi
 
 __CMDLINE="${TESTONLY_ALTERNATIVE_CMDLINE:-/proc/cmdline}"
 TO_PARSE="$(<"$__CMDLINE")"
-parse "$TO_PARSE" | lookup "$@"
+parse "$TO_PARSE" "$@"
