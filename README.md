@@ -1,4 +1,4 @@
-# k_params
+# kparams
 
 Extracts kernel parameter values from /proc/cmdline. Handles bare and quoted
 parameters.

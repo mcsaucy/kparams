@@ -3,7 +3,7 @@
 HERE="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 function run() {
-    "$TESTSHELL" "$HERE/../k_params" "$@"
+    "$TESTSHELL" "$HERE/../kparams" "$@"
 }
 
 function error() {
@@ -25,17 +25,17 @@ function warn() {
 function check() {
     rc=0
     if ! have="$(run "$1")"; then
-        error "Failed check in ${FUNCNAME[1]}; k_params '$1' exited with status $?"
+        error "Failed check in ${FUNCNAME[1]}; kparams '$1' exited with status $?"
         FAILURES+=("${FUNCNAME[1]}")
         rc=1
     fi
 
     if [[ "$have" != "$2" ]]; then
-        error "Failed check in ${FUNCNAME[1]}; k_params '$1' = '$have', want '$2'"
+        error "Failed check in ${FUNCNAME[1]}; kparams '$1' = '$have', want '$2'"
         FAILURES+=("${FUNCNAME[1]}")
         rc=1
     else
-        info "${FUNCNAME[1]}; check k_params '$1' ✓"
+        info "${FUNCNAME[1]}; check kparams '$1' ✓"
     fi
     return "$rc"
 }
@@ -43,17 +43,17 @@ function check() {
 function check_with_default() {
     rc=0
     if ! have="$(run "$1" "$2")"; then
-        error "Failed check_with_default in ${FUNCNAME[1]}; k_params '$1' '$2' exited with status $?"
+        error "Failed check_with_default in ${FUNCNAME[1]}; kparams '$1' '$2' exited with status $?"
         FAILURES+=("${FUNCNAME[1]}")
         rc=1
     fi
 
     if [[ "$have" != "$3" ]]; then
-        error "Failed check_with_default in ${FUNCNAME[1]}; k_params '$1' '$2' = '$have', want '$3'"
+        error "Failed check_with_default in ${FUNCNAME[1]}; kparams '$1' '$2' = '$have', want '$3'"
         FAILURES+=("${FUNCNAME[1]}")
         rc=1
     else
-        info "${FUNCNAME[1]}; check_with_default k_params '$1' '$2' ✓"
+        info "${FUNCNAME[1]}; check_with_default kparams '$1' '$2' ✓"
     fi
     return "$rc"
 }
@@ -95,11 +95,11 @@ function test_usage() {
     export TESTONLY_ALTERNATIVE_CMDLINE="$HERE/flatcar_cmdline.txt"
 
     if have="$(run 2>&1)"; then
-        error "Failed in ${FUNCNAME[0]}; k_params exited with status $?"
+        error "Failed in ${FUNCNAME[0]}; kparams exited with status $?"
         FAILURES+=("${FUNCNAME[0]}")
     fi
     if ! grep -q "Usage:" <<< "$have"; then
-        error "Failed in ${FUNCNAME[0]}; k_params lacks 'Usage:'; have '$have'"
+        error "Failed in ${FUNCNAME[0]}; kparams lacks 'Usage:'; have '$have'"
         FAILURES+=("${FUNCNAME[0]}")
     fi
 }
