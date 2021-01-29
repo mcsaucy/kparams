@@ -34,7 +34,7 @@ substr() {
     expr substr "$str" "$((start+1))" "$len"
 }
 
-# Finds the $2 kernel param value in $1, emitting if absent and $3 is provided. 
+# Finds the $2 kernel param value in $1, emitting if absent and $3 is provided.
 lookup() {
     to_parse="$1"
 
