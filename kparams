@@ -46,7 +46,6 @@ lookup() {
 
     while [ "$head" -lt "${#to_parse}" ]; do
         char="$(substr "$to_parse" "$head" 1)"
-        next="$(substr "$to_parse" "$((head+1))" 1)"
 
         if [ "$esc" = "true" ]; then # char is escaped, skipping.
             esc=false
@@ -99,6 +98,7 @@ lookup() {
                 ;;
             '\')
                 esc=true
+                next="$(substr "$to_parse" "$((head+1))" 1)"
                 case "$next" in
                     "'" | '"' | '\')
                         zap_char=y
