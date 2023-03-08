@@ -3,9 +3,7 @@
 
 usage_and_die() {
     {
-        echo 'Extracts kernel parameters from /proc/cmdline. Only run this on trusted files!'
-        echo 'To prevent erroneous expansion, this will fail if /proc/cmdline has a $ in it.'
-        echo 'If you want to expand cmdlines that have a $, use a real language (not bash).'
+        echo 'Extracts kernel parameters from /proc/cmdline.'
         echo 'If parameter is absent, return DEFAULT_VALUE (if set) or exit with status 1.'
         echo "Usage: $0 PARAMETER [DEFAULT_VALUE]"
     } >&2
